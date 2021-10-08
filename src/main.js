@@ -8,50 +8,40 @@ import Listr from 'listr'
 import { projectInstall } from 'pkg-install'
 
 const access = promisify(fs.access)
+const cwd = process.cwd()
 
 const copy = promisify(ncp)
 
+const pkgFromUserAgent = userAgent => {
+  if (!userAgent) return undefined
+  const pkgSpec = userAgent.split(' ')[0]
+  const pkgSpecArr = pkgSpec.split('/')
+  return {
+    name: pkgSpecArr[0],
+    version: pkgSpecArr[1]
+  }
+}
+
 const copyTemplateToTarget = async options => {
   const write = (file, content) => {
-    const targetPath = renameFiles[file] ? path.join(root, renameFiles[file]) : path.join(root, file)
+    const targetPath = renameFiles[file] ? path.join(options.root, renameFiles[file]) : path.join(options.root, file)
     if (content) {
       fs.writeFileSync(targetPath, content)
     } else {
-      copy(path.join(templateDir, file), targetPath)
+      copy(path.join(options.templateDir, file), targetPath)
     }
   }
 
-  const files = fs.readdirSync(templateDir)
+  const files = fs.readdirSync(options.templateDir)
   for (const file of files.filter(f => f !== 'package.json')) {
     write(file)
   }
 
-  const pkg = require(path.join(templateDir, `package.json`))
+  const pkg = require(path.join(options.templateDir, `package.json`))
 
   pkg.name = options.packageName || options.targetDir
 
   write('package.json', JSON.stringify(pkg, null, 2))
-
-  const pkgInfo = pkgFromUserAgent(process.env.npm_config_user_agent)
-  const pkgManager = pkgInfo ? pkgInfo.name : 'npm'
-
-  console.log(`\nDone. Now run:\n`)
-  if (root !== cwd) {
-    console.log(`  cd ${path.relative(cwd, root)}`)
-  }
-  switch (pkgManager) {
-    case 'yarn':
-      console.log('  yarn')
-      console.log('  yarn dev')
-      break
-    default:
-      console.log(`  ${pkgManager} install`)
-      console.log(`  ${pkgManager} run dev`)
-      break
-  }
-  // return copy(options.templateDir, options.targetDir, {
-  //   clobber: false
-  // })
 }
 
 const initGit = async options => {
@@ -59,7 +49,7 @@ const initGit = async options => {
     cwd: options.targetDir
   })
   if (result.failed) {
-    return Promise.reject(new Error('Failed to initialize git'))
+    return Promise.reject(new Error('git初始化失败'))
   }
   return
 }
@@ -84,19 +74,20 @@ const renameFiles = {
   _gitignore: '.gitignore',
   _env: '.env',
   _eslintignore: '.eslintignore',
-  _eslintrc.js: '.eslintrc.js',
+  _eslintrc_js: '.eslintrc.js',
   _prettierrc: '.prettierrc'
 }
 
 export default async function createSpaApp(options) {
   options = {
     ...options,
-    targetDir: options.targetDir || process.cwd()
+    targetDir: options.targetDir || process.cwd(),
+    root: path.join(cwd, options.targetDir || process.cwd())
   }
-  const templateDir = path.resolve(new URL(import.meta.url).pathname, '../../template', options.template)
+  const templateDir = path.resolve(new URL(import.meta.url).pathname, '../../template')
   options.templateDir = templateDir
 
-  const root = path.join(cwd, targetDir)
+  const root = path.join(cwd, options.targetDir)
 
   if (options.overwrite) {
     emptyDir(root)
@@ -114,24 +105,40 @@ export default async function createSpaApp(options) {
 
   const tasks = new Listr([
     {
-      title: 'Copy project files',
+      title: '拷贝项目文件',
       task: () => copyTemplateToTarget(options)
     },
     {
-      title: 'Initialize git',
+      title: '初始化git',
       task: () => initGit(options),
       enabled: () => options.git
     },
     {
-      title: 'Install dependencies',
+      title: '安装项目依赖',
       task: () => projectInstall({ prefer: 'yarn', cwd: options.targetDir }),
-      skip: () => {
-        !options.install ? 'Pass --install to automatically install dependencies' : undefined
-      }
+      skip: () => !options.install ? '加上 --install 参数，自动安装项目依赖' : false
     }
   ])
 
   await tasks.run()
-  console.log('$s Project ready', chalk.green.bold('DONE'))
+  console.log('$s 项目已经准备好', chalk.green.bold('完成！'))
+
+  const pkgInfo = pkgFromUserAgent(process.env.npm_config_user_agent)
+  const pkgManager = pkgInfo ? pkgInfo.name : 'npm'
+
+  console.log(`\nDone. Now run:\n`)
+  if (options.root !== cwd) {
+    console.log(`  cd ${path.relative(cwd, options.root)}`)
+  }
+  switch (pkgManager) {
+    case 'yarn':
+      !options.install && console.log('  yarn')
+      console.log('  yarn dev')
+      break
+    default:
+      !options.install && console.log(`  ${pkgManager} install`)
+      console.log(`  ${pkgManager} run dev`)
+      break
+  }
   return true
 }
