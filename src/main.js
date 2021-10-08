@@ -81,7 +81,11 @@ const emptyDir = dir => {
 }
 
 const renameFiles = {
-  _gitignore: '.gitignore'
+  _gitignore: '.gitignore',
+  _env: '.env',
+  _eslintignore: '.eslintignore',
+  _eslintrc.js: '.eslintrc.js',
+  _prettierrc: '.prettierrc'
 }
 
 export default async function createSpaApp(options) {

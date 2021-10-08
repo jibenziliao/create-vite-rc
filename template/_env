@@ -1,0 +1,6 @@
+
+VITE_API_PREFIX='/'
+VITE_TIMEOUT=30000
+# 在vite中.env文件访问不到node(package.json)中的变量，需要编译脚本注入变量
+VITE_PROJECT_NAME=$npm_package_name
+VITE_SENTRY_RELEASE=$npm_package_version

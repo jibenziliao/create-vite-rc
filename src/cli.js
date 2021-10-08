@@ -83,19 +83,19 @@ const promptForOptions = async options => {
     default: false
   })
 
-  questions.push({
-    type:'confirm',
-    name: 'overwriteChecker',
-    message: '确认清空目录下的文件',
-    when: answers => {
-      if (answers.overwrite === false) {
-        throw new Error(red('✖') + ' 操作取消')
-        console.log('操作取消')
-        return false
-      }
-      return true
-    }
-  })
+  // questions.push({
+  //   type:'confirm',
+  //   name: 'overwriteChecker',
+  //   message: '确认清空目录下的文件',
+  //   when: answers => {
+  //     if (answers.overwrite === false) {
+  //       throw new Error(red('✖') + ' 操作取消')
+  //       console.log('操作取消')
+  //       return false
+  //     }
+  //     return false
+  //   }
+  // })
 
   questions.push({
     type: 'input',
